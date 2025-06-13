@@ -1,6 +1,2 @@
-<<<<<<< HEAD
 flask
-=======
-flask
->>>>>>> cba8644c73fdb9d6f54323f0b28713d64bdd1e93
 assemblyai
