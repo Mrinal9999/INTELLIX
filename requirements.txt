@@ -1,3 +1,2 @@
-assemblyai
-requests
 flask
+assemblyai

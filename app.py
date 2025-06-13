@@ -1,16 +1,31 @@
-import os, requests, assemblyai as aai
+import os
 from flask import Flask, request, jsonify
+import assemblyai as aai
 
-aai.settings.api_key = os.environ.get("6ddc26c2ca3449f5bad38b20a3566a48")
+# Load API key from environment variable
+aai.settings.api_key = os.environ.get("ASSEMBLYAI_KEY")
 
+transcriber = aai.Transcriber()
 app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "AssemblyAI Chatbot Backend is Running!"
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    f = request.files['audio']
-    resp = requests.post("https://api.assemblyai.com/v2/upload",
-                         headers={'authorization': aai.settings.api_key},
-                         files={'file': f})
-    audio_url = resp.json()['upload_url']
-    transcript = aai.transcribe(audio_url)
-    return jsonify({'transcript': transcript.text})
+    if 'audio' not in request.files:
+        return jsonify({'error': 'No audio file'}), 400
+
+    audio_file = request.files['audio']
+    temp_path = "temp_audio.wav"
+    audio_file.save(temp_path)
+
+    try:
+        transcript = transcriber.transcribe(temp_path)
+        return jsonify({'transcript': transcript.text})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
