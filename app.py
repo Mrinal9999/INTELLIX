@@ -30,7 +30,8 @@ download_if_missing(MODEL_URL, MODEL_FILE)
 download_if_missing(SCORER_URL, SCORER_FILE)
 
 # ✅ Load DeepSpeech Model
-model = deepspeech.Model(MODEL_FILE)
+from deepspeech import Model
+model = Model(MODEL_FILE)
 model.enableExternalScorer(SCORER_FILE)
 
 # 🧠 Flask routes
