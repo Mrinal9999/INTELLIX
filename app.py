@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "AssemblyAI Chatbot Backend is Running!"
+    return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():
