@@ -1,5 +1,3 @@
-Flask
-deepspeech-tflite
-numpy
-scipy
+assemblyai
 requests
+flask
