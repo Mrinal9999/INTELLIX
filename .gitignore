@@ -1,0 +1,5 @@
+uploads/ 
+deepspeech-0.9.3-models.pbmm 
+deepspeech-0.9.3-models.scorer 
+__pycache__/ 
+.env 
