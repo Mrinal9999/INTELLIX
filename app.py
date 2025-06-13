@@ -8,7 +8,7 @@ aai.settings.api_key = os.environ.get("ASSEMBLYAI_KEY")
 transcriber = aai.Transcriber()
 app = Flask(__name__)
 
-@app.route('/')
+@app.route('/', methods=['GET', 'HEAD'])
 def index():
     return render_template('index.html')
 
