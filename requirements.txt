@@ -1,4 +1,2 @@
-Flask
-deepspeech
-numpy
-scipy
+flask
+assemblyai
