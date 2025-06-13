@@ -1,20 +1,42 @@
-from flask import Flask, request, jsonify, send_from_directory
 import os
-import wave
+import requests
+from flask import Flask, request, jsonify, render_template
 import numpy as np
-import deepspeech
 from scipy.io import wavfile
+import deepspeech
 
-app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app = Flask(__name__, static_url_path='/static')
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
-model = deepspeech.Model('deepspeech-0.9.3-models.pbmm')
-model.enableExternalScorer('deepspeech-0.9.3-models.scorer')
+# URLs to DeepSpeech model files
+MODEL_URL = "https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.pbmm"
+SCORER_URL = "https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.scorer"
 
+MODEL_FILE = "deepspeech-0.9.3-models.pbmm"
+SCORER_FILE = "deepspeech-0.9.3-models.scorer"
+
+# ✅ Auto-download if not present
+def download_if_missing(url, filename):
+    if not os.path.exists(filename):
+        print(f"Downloading {filename}...")
+        r = requests.get(url, stream=True)
+        with open(filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        print(f"{filename} downloaded.")
+
+download_if_missing(MODEL_URL, MODEL_FILE)
+download_if_missing(SCORER_URL, SCORER_FILE)
+
+# ✅ Load DeepSpeech Model
+model = deepspeech.Model(MODEL_FILE)
+model.enableExternalScorer(SCORER_FILE)
+
+# 🧠 Flask routes
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -25,17 +47,16 @@ def upload():
     path = os.path.join(app.config['UPLOAD_FOLDER'], 'record.wav')
     file.save(path)
 
-    # Proper way to load .wav audio
     rate, audio = wavfile.read(path)
-    if rate != 16000:
-        return jsonify({'error': 'Sample rate must be 16000 Hz'}), 400
 
     if audio.ndim > 1:
-        audio = audio[:, 0]  # take only first channel if stereo
+        audio = audio[:, 0]  # take first channel if stereo
+
+    if rate != 16000:
+        return jsonify({'error': 'Sample rate must be 16000 Hz'}), 400
 
     text = model.stt(audio)
     return jsonify({'transcript': text})
 
 if __name__ == '__main__':
-    os.makedirs('uploads', exist_ok=True)
-    app.run(debug=True)
+    app.run(debug=False)

@@ -2,3 +2,4 @@ Flask
 deepspeech
 numpy
 scipy
+requests
