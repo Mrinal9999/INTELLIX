@@ -17,7 +17,7 @@ function loadChatHistory() {
 
     const img = document.createElement("img");
     img.classList.add("profile-image");
-    img.src = isUser ? "/static/user.jpg" : "/static/bot.jpg";
+    img.src = isUser ? "{{ url_for('static', filename='user.jpg') }}" : "{{ url_for('static', filename='bot.jpg') }}";
     img.src = isUser ? "user.jpg" : "bot.jpg";
     img.alt = isUser ? "User" : "Bot";
 
@@ -58,7 +58,7 @@ return text.replace(/#{1,6}\s?/g, '').replace(/\*\*/g, '').replace(/\n{3,}/g, "\
 
   const img = document.createElement('img');
   img.classList.add("profile-image");
-  img.src = isUser ? "/static/user.jpg" : "/static/bot.jpg";
+  img.src = isUser ? "{{ url_for('static', filename='user.jpg') }}" : "{{ url_for('static', filename='bot.jpg') }}";
   img.src = isUser ? "user.jpg" : "bot.jpg"
   img.alt = isUser ? "User" : 'Bot';
 
