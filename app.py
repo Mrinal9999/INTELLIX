@@ -23,13 +23,15 @@ def upload():
 
     try:
         transcript = transcriber.transcribe(temp_path)
+        print("Transcript:", transcript.text)
         return jsonify({'transcript': transcript.text})
     except Exception as e:
+        print("Transcription error:", str(e))
         return jsonify({'error': str(e)})
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
-
+            
 # ✅ Bind for Render deployment
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
