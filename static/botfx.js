@@ -1,83 +1,100 @@
-let mediaRecorder;
-let audioChunks = [];
-let silenceTimer;
-let audioContext, analyser, micStream;
+document.addEventListener("DOMContentLoaded", () => {
+  const micButton = document.getElementById("mic-button");
+  if (!micButton) return;
 
-const micButton = document.getElementById("mic-button");
+  let micAudioContext;
+  let micStream;
+  let micMediaRecorder;
+  let micAudioChunks = [];
+  let silenceTimer;
+  let analyser;
 
-micButton.addEventListener("click", async () => {
-  if (!mediaRecorder || mediaRecorder.state === "inactive") {
-    // Start mic stream
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  micButton.addEventListener("click", async () => {
+    if (!micMediaRecorder || micMediaRecorder.state === "inactive") {
+      console.log("🎙️ Starting mic...");
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    mediaRecorder = new MediaRecorder(micStream);
-    audioChunks = [];
+      micMediaRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm' });
+      micAudioChunks = [];
 
-    // Setup audio context for silence detection
-    audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(micStream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    source.connect(analyser);
-
-    const dataArray = new Uint8Array(analyser.fftSize);
-
-    const detectSilence = () => {
-      analyser.getByteTimeDomainData(dataArray);
-      const avg = dataArray.reduce((sum, val) => sum + Math.abs(val - 128), 0) / dataArray.length;
-
-      if (avg < 5) {
-        // Detected silence
-        if (!silenceTimer) {
-          silenceTimer = setTimeout(() => {
-            if (mediaRecorder.state === "recording") {
-              mediaRecorder.stop();
-              micStream.getTracks().forEach(track => track.stop());
-              audioContext.close();
-              console.log("🛑 Auto-stopped due to silence");
-            }
-          }, 2000); // 2 seconds of silence
+      micMediaRecorder.ondataavailable = e => {
+        if (e.data.size > 0) {
+          micAudioChunks.push(e.data);
+          console.log("📥 Audio chunk received:", e.data.size);
         }
-      } else {
-        // Reset silence timer if speaking again
-        clearTimeout(silenceTimer);
-        silenceTimer = null;
-      }
+      };
 
-      if (mediaRecorder.state === "recording") {
-        requestAnimationFrame(detectSilence);
-      }
-    };
+      micMediaRecorder.onstop = async () => {
+        console.log("🛑 Recording stopped, preparing to upload...");
 
-    mediaRecorder.ondataavailable = event => {
-      if (event.data.size > 0) audioChunks.push(event.data);
-    };
+        const audioBlob = new Blob(micAudioChunks, { type: 'audio/webm' });
+        console.log("🎧 Audio blob size:", audioBlob.size);
 
-    mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "record.wav");
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "record.webm");
 
-      const response = await fetch("/upload", {
-        method: "POST",
-        body: formData
-      });
+        try {
+          const response = await fetch("/upload", {
+            method: "POST",
+            body: formData
+          });
 
-      const data = await response.json();
-      if (data.transcript) {
-        sendMessage(data.transcript); // insert transcript into your chat
-      }
-    };
+          const data = await response.json();
+          console.log("✅ Server response:", data);
 
-    mediaRecorder.start();
-    detectSilence();
-    console.log("🎙️ Mic started with silence detection");
+          if (data.transcript) {
+            sendMessage(data.transcript);
+          } else {
+            console.warn("⚠️ No transcript returned.");
+          }
+        } catch (err) {
+          console.error("❌ Upload error:", err);
+        }
+      };
 
-  } else if (mediaRecorder.state === "recording") {
-    // Manual stop
-    mediaRecorder.stop();
-    micStream.getTracks().forEach(track => track.stop());
-    audioContext.close();
-    console.log("🛑 Mic stopped manually");
-  }
+      micMediaRecorder.start();
+      console.log("📼 Recording started");
+
+      micAudioContext = new AudioContext();
+      const source = micAudioContext.createMediaStreamSource(micStream);
+      analyser = micAudioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.fftSize);
+
+      const detectSilence = () => {
+        analyser.getByteTimeDomainData(dataArray);
+        const avg = dataArray.reduce((a, v) => a + Math.abs(v - 128), 0) / dataArray.length;
+
+        if (avg < 5) {
+          if (!silenceTimer) {
+            silenceTimer = setTimeout(() => {
+              if (micMediaRecorder && micMediaRecorder.state === "recording") {
+                console.log("🔇 Silence detected, stopping mic");
+                micMediaRecorder.stop();
+                micStream.getTracks().forEach(track => track.stop());
+                micAudioContext.close();
+              }
+            }, 2000); // stop after 2 sec silence
+          }
+        } else {
+          clearTimeout(silenceTimer);
+          silenceTimer = null;
+        }
+
+        if (micMediaRecorder && micMediaRecorder.state === "recording") {
+          requestAnimationFrame(detectSilence);
+        }
+      };
+
+      detectSilence();
+
+    } else if (micMediaRecorder.state === "recording") {
+      console.log("🧼 Manual mic stop");
+      micMediaRecorder.stop();
+      micStream.getTracks().forEach(track => track.stop());
+      micAudioContext.close();
+    }
+  });
 });
