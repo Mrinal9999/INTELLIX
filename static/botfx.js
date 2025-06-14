@@ -1,83 +1,74 @@
 let mediaRecorder;
 let audioChunks = [];
-let silenceTimer;
-let audioContext, analyser, micStream;
+let isRecording = false;
+let micStream = null;
 
-const micButton = document.getElementById("mic-button");
+const micButton = document.getElementById("mic-btn");
 
 micButton.addEventListener("click", async () => {
-  if (!mediaRecorder || mediaRecorder.state === "inactive") {
-    // Start mic stream
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  if (isRecording) {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+    isRecording = false;
+    canvas.classList.add("hidden");
+    stopMicStream();
+    return;
+  }
 
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(micStream);
     audioChunks = [];
-
-    // Setup audio context for silence detection
-    audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(micStream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    source.connect(analyser);
-
-    const dataArray = new Uint8Array(analyser.fftSize);
-
-    const detectSilence = () => {
-      analyser.getByteTimeDomainData(dataArray);
-      const avg = dataArray.reduce((sum, val) => sum + Math.abs(val - 128), 0) / dataArray.length;
-
-      if (avg < 5) {
-        // Detected silence
-        if (!silenceTimer) {
-          silenceTimer = setTimeout(() => {
-            if (mediaRecorder.state === "recording") {
-              mediaRecorder.stop();
-              micStream.getTracks().forEach(track => track.stop());
-              audioContext.close();
-              console.log("🛑 Auto-stopped due to silence");
-            }
-          }, 2000); // 2 seconds of silence
-        }
-      } else {
-        // Reset silence timer if speaking again
-        clearTimeout(silenceTimer);
-        silenceTimer = null;
-      }
-
-      if (mediaRecorder.state === "recording") {
-        requestAnimationFrame(detectSilence);
-      }
-    };
+    isRecording = true;
+    canvas.classList.remove("hidden");
 
     mediaRecorder.ondataavailable = event => {
-      if (event.data.size > 0) audioChunks.push(event.data);
+      audioChunks.push(event.data);
     };
 
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+      canvas.classList.add("hidden");
+      stopMicStream();
+
+      const blob = new Blob(audioChunks, { type: "audio/wav" });
       const formData = new FormData();
-      formData.append("audio", audioBlob, "record.wav");
+      formData.append("audio", blob);
 
-      const response = await fetch("/upload", {
-        method: "POST",
-        body: formData
-      });
+      try {
+        const res = await fetch("/upload", {
+          method: "POST",
+          body: formData
+        });
 
-      const data = await response.json();
-      if (data.transcript) {
-        sendMessage(data.transcript); // insert transcript into your chat
+        const data = await res.json();
+        if (data.transcript) {
+          userInput.value = data.transcript;
+          handleUserInput();
+        }
+      } catch (uploadError) {
+        console.error("Upload error:", uploadError);
       }
     };
+  
+  mediaRecorder.start();
 
-    mediaRecorder.start();
-    detectSilence();
-    console.log("🎙️ Mic started with silence detection");
-
-  } else if (mediaRecorder.state === "recording") {
-    // Manual stop
-    mediaRecorder.stop();
-    micStream.getTracks().forEach(track => track.stop());
-    audioContext.close();
-    console.log("🛑 Mic stopped manually");
+    
+  } catch (err) {
+    console.error("Microphone access failed:", err);
+    stopMicStream();
+    canvas.classList.add("hidden");
+    isRecording = false;
   }
 });
+
+function stopMicStream() {
+  if (micStream) {
+    micStream.getAudioTracks().forEach(track => {
+      if (track.enabled || track.readyState === "live") {
+        track.stop();
+      }
+    });
+    micStream = null;
+  }
+}
