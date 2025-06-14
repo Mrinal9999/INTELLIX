@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 import os
 from flask import Flask, request, jsonify
 import assemblyai as aai
@@ -33,7 +33,6 @@ def upload():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-=======
 import os
 from flask import Flask, request, jsonify
 import assemblyai as aai
@@ -68,5 +67,4 @@ def upload():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
->>>>>>> cba8644c73fdb9d6f54323f0b28713d64bdd1e93
     app.run(host='0.0.0.0', port=port)
